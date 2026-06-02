@@ -1,0 +1,11 @@
+{
+  "name": "tts-test",
+  "version": "1.0.0",
+  "description": "TTS voice tuning static site deployed to GitHub Pages",
+  "main": "index.html",
+  "scripts": {
+    "deploy": "npx gh-pages -d ."
+  },
+  "author": "User",
+  "license": "MIT"
+}

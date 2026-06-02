@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聲學調校視覺化儀表板 - Acoustic Tuning Visualizer</title>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <style>
+        :root {
+            --bg-color: #f8fafc;
+            --panel-bg: rgba(255, 255, 255, 0.85);
+            --border: rgba(0, 0, 0, 0.06);
+            
+            --primary: #7c3aed;
+            --primary-glow: rgba(124, 58, 237, 0.15);
+            --secondary: #059669;
+            --secondary-glow: rgba(5, 150, 105, 0.15);
+            --accent: #e11d48;
+            
+            --text-main: #0f172a;
+            --text-muted: #475569;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Outfit', 'Noto Sans TC', sans-serif;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 80% 20%, rgba(139, 92, 246, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 20% 80%, rgba(5, 150, 105, 0.04) 0%, transparent 50%);
+            background-attachment: fixed;
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 40px 24px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header styling */
+        header {
+            margin-bottom: 40px;
+            position: relative;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 20px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            padding-bottom: 24px;
+        }
+
+        .header-left h1 {
+            font-size: 2.2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #0f172a 40%, #7c3aed 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 6px;
+        }
+
+        .header-left p {
+            color: var(--text-muted);
+            font-size: 0.95rem;
+        }
+
+        .back-btn {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid var(--border);
+            color: #475569;
+            padding: 10px 20px;
+            border-radius: 14px;
+            font-size: 0.85rem;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .back-btn:hover {
+            background: rgba(0, 0, 0, 0.04);
+            border-color: rgba(0, 0, 0, 0.15);
+            color: #0f172a;
+            transform: translateX(-4px);
+        }
+
+        /* Two-Column Studio Layout */
+        .studio-layout {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 30px;
+        }
+
+        @media (max-width: 1100px) {
+            .studio-layout {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Left column: List & Table */
+        .main-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+            flex-wrap: wrap;
+            gap: 16px;
+        }
+
+        .panel-title {
+            font-size: 1.3rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .panel-title::before {
+            content: '';
+            display: inline-block;
+            width: 4px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        /* Table Styling */
+        .table-container {
+            width: 100%;
+            overflow-x: auto;
+            border-radius: 16px;
+            background: rgba(0, 0, 0, 0.01);
+            border: 1px solid rgba(0, 0, 0, 0.02);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+            font-size: 0.9rem;
+        }
+
+        th {
+            background: rgba(255, 255, 255, 0.03);
+            color: var(--text-muted);
+            font-weight: 600;
+            padding: 14px 18px;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        }
+
+        td {
+            padding: 14px 18px;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.01);
+            color: #334155;
+        }
+
+        tr {
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        tr:hover {
+            background: rgba(124, 58, 237, 0.03);
+        }
+
+        tr.selected {
+            background: rgba(124, 58, 237, 0.06);
+        }
+
+        tr.selected td {
+            color: #0f172a;
+        }
+
+        .row-id {
+            font-weight: 700;
+            font-family: monospace;
+            color: var(--primary);
+        }
+
+        .badge-cat {
+            font-size: 0.75rem;
+            font-weight: 600;
+            padding: 2px 8px;
+            border-radius: 6px;
+            display: inline-block;
+        }
+
+        .cat-female { background: rgba(236, 72, 153, 0.1); color: #ec4899; }
+        .cat-male { background: rgba(5, 150, 105, 0.04); color: #10b981; }
+        .cat-girl { background: rgba(244, 63, 94, 0.1); color: #f43f5e; }
+        .cat-boy { background: rgba(6, 182, 212, 0.1); color: #06b6d4; }
+
+        .param-text {
+            font-family: monospace;
+            font-weight: 600;
+        }
+
+        .param-rate { color: #f59e0b; }
+        .param-pitch { color: #3b82f6; }
+
+        /* Right column: Interactive Visualizer */
+        .visualizer-panel {
+            background: var(--panel-bg);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 30px;
+            backdrop-filter: blur(20px);
+            display: flex;
+            flex-direction: column;
+            gap: 24px;
+            position: sticky;
+            top: 40px;
+            height: fit-content;
+        }
+
+        .viz-header {
+            text-align: center;
+        }
+
+        .viz-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin-bottom: 4px;
+            color: #0f172a;
+        }
+
+        .viz-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* SVG Resonance Simulator */
+        .simulator-box {
+            height: 200px;
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .chamber-svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .viz-label {
+            position: absolute;
+            bottom: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            background: rgba(8, 9, 20, 0.6);
+            padding: 4px 10px;
+            border-radius: 8px;
+            letter-spacing: 0.5px;
+        }
+
+        /* Slider Controls Visualizers */
+        .viz-control {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .control-val {
+            font-weight: 600;
+            color: #0f172a;
+            font-family: monospace;
+        }
+
+        .slider-bg {
+            height: 8px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 4px;
+            position: relative;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+        }
+
+        .slider-fill {
+            height: 100%;
+            width: 50%;
+            background: linear-gradient(90deg, var(--primary), var(--secondary));
+            border-radius: 4px;
+            position: absolute;
+            top: 0;
+            left: 0;
+            transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        /* Large Action buttons */
+        .audio-action-row {
+            display: flex;
+            gap: 12px;
+            margin-top: 10px;
+        }
+
+        .action-play-btn {
+            flex-grow: 1;
+            background: var(--primary);
+            color: #ffffff;
+            border: none;
+            padding: 14px 20px;
+            border-radius: 16px;
+            font-weight: 600;
+            font-size: 0.95rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.2);
+            transition: all 0.3s;
+        }
+
+        .action-play-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(124, 58, 237, 0.3);
+        }
+
+        .action-play-btn.playing {
+            background: var(--accent);
+            color: #0f172a;
+            box-shadow: 0 4px 15px rgba(244, 63, 94, 0.3);
+        }
+
+        .action-play-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        /* CLI Code copy helper */
+        .cli-helper-box {
+            background: rgba(0, 0, 0, 0.02);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            border-radius: 16px;
+            padding: 16px;
+        }
+
+        .cli-title {
+            font-size: 0.75rem;
+            color: var(--primary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .copy-hint {
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .cli-code {
+            font-family: monospace;
+            font-size: 0.75rem;
+            color: #475569;
+            word-break: break-all;
+            background: rgba(0,0,0,0.2);
+            padding: 10px;
+            border-radius: 8px;
+            cursor: pointer;
+            border: 1px solid rgba(255, 255, 255, 0.02);
+            transition: all 0.2s;
+        }
+
+        .cli-code:hover {
+            border-color: rgba(139, 92, 246, 0.3);
+            background: rgba(139, 92, 246, 0.02);
+        }
+
+        /* Copy Toast notification */
+        .toast {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: var(--secondary);
+            color: #0f172a;
+            padding: 12px 24px;
+            border-radius: 12px;
+            font-weight: 500;
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.3);
+            transform: translateY(-50px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            z-index: 200;
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* Science Intro */
+        .science-section {
+            background: rgba(255, 255, 255, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 30px;
+            margin-top: 40px;
+        }
+
+        .science-section h3 {
+            font-size: 1.3rem;
+            margin-bottom: 16px;
+            color: #0f172a;
+        }
+
+        .science-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 24px;
+            margin-top: 20px;
+        }
+
+        .science-card {
+            background: rgba(255, 255, 255, 0.8);
+            border: 1px solid rgba(0, 0, 0, 0.03);
+            border-radius: 16px;
+            padding: 20px;
+        }
+
+        .science-card h4 {
+            font-size: 0.95rem;
+            color: var(--secondary);
+            margin-bottom: 8px;
+        }
+
+        .science-card p {
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="toast" id="toast">已複製到剪貼簿！</div>
+
+    <div class="container">
+        
+        <!-- Header -->
+        <header>
+            <div class="header-left">
+                <!-- Xiaoer Logo Badge -->
+                <div style="display: inline-flex; align-items: center; gap: 8px; background: rgba(0, 0, 0, 0.02); border: 1px solid rgba(0, 0, 0, 0.05); padding: 5px 12px; border-radius: 20px; margin-bottom: 10px; backdrop-filter: blur(5px);">
+                    <img src="./xiaoer-m01-superman.png" alt="Xiaoer" style="width: 20px; height: 20px; border-radius: 50%; border: 1px solid var(--primary); box-shadow: 0 0 8px var(--primary-glow);">
+                    <span style="font-size: 0.72rem; color: #475569; font-weight: 600; letter-spacing: 0.5px;">Powered by Xiaoer & Antigravity 2.0</span>
+                </div>
+                <h1>聲學調校視覺化儀表板</h1>
+                <p>Acoustic Parameter Tuning Visualizer Dashboard</p>
+            </div>
+            <a href="./index.html" class="back-btn">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="19" y1="12" x2="5" y2="12"></line>
+                    <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+                返回語音藝廊
+            </a>
+        </header>
+
+        <!-- Main Studio Area -->
+        <div class="studio-layout">
+            
+            <!-- Left Panel: All 20 voices list -->
+            <div class="main-panel">
+                <div class="panel-header">
+                    <h2 class="panel-title">20 款微調聲線對照清單</h2>
+                </div>
+                
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>編號</th>
+                                <th>分類</th>
+                                <th>風格名稱</th>
+                                <th>聲線母體</th>
+                                <th>語速微調</th>
+                                <th>音調微調</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbody">
+                            <!-- Populated dynamically -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            <!-- Right Panel: Responsive Acoustics Simulator Visualizer -->
+            <div class="visualizer-panel">
+                <div class="viz-header">
+                    <div class="viz-title" id="selectedStyle">未選擇聲線</div>
+                    <div class="viz-subtitle" id="selectedCat">點選左側表格列進行聲學視覺化</div>
+                </div>
+                
+                <!-- Graphic Simulated vocal tract chamber -->
+                <div class="simulator-box">
+                    <svg class="chamber-svg" viewBox="0 0 200 200">
+                        <!-- Glow Filters -->
+                        <defs>
+                            <radialGradient id="glowGrad" cx="50%" cy="50%" r="50%">
+                                <stop offset="0%" stop-color="#8b5cf6" stop-opacity="0.5" />
+                                <stop offset="100%" stop-color="#8b5cf6" stop-opacity="0" />
+                            </radialGradient>
+                        </defs>
+                        <!-- Dynamic Circle representing Vocal Tract Size (Chamber) -->
+                        <circle cx="100" cy="100" r="45" id="simChamber" fill="url(#glowGrad)" stroke="#8b5cf6" stroke-width="3" stroke-dasharray="4 2" />
+                        <!-- Inside Core representing Vocal Chord Tension -->
+                        <circle cx="100" cy="100" r="15" id="simChord" fill="#10b981" opacity="0.8" />
+                        <!-- Sim Waveforms -->
+                        <path d="M 40 100 Q 70 80, 100 100 T 160 100" fill="none" stroke="rgba(255,255,255,0.15)" stroke-width="2" id="simWave1" />
+                        <path d="M 40 100 Q 70 120, 100 100 T 160 100" fill="none" stroke="rgba(255,255,255,0.1)" stroke-width="1" id="simWave2" />
+                    </svg>
+                    <div class="viz-label" id="vizTractLabel">共鳴腔大小：100%</div>
+                </div>
+                
+                <!-- Speed/Rate slider gauge -->
+                <div class="viz-control">
+                    <div class="control-header">
+                        <span>語速微調 (Speech Rate)</span>
+                        <span class="control-val" id="vizRateVal">+0%</span>
+                    </div>
+                    <div class="slider-bg">
+                        <div class="slider-fill" id="vizRateSlider" style="width: 50%;"></div>
+                    </div>
+                </div>
+                
+                <!-- Pitch slider gauge -->
+                <div class="viz-control">
+                    <div class="control-header">
+                        <span>音調微調 (Pitch Tuning)</span>
+                        <span class="control-val" id="vizPitchVal">+0Hz</span>
+                    </div>
+                    <div class="slider-bg">
+                        <div class="slider-fill" id="vizPitchSlider" style="width: 50%;"></div>
+                    </div>
+                </div>
+                
+                <!-- Copy CLI Command helper -->
+                <div class="cli-helper-box">
+                    <div class="cli-title">
+                        <span>指令生成器 (CLI Generator)</span>
+                        <span class="copy-hint">點擊代碼框複製</span>
+                    </div>
+                    <div class="cli-code" id="cliCodeBox">
+                        edge-tts --voice ...
+                    </div>
+                </div>
+                
+                <!-- Interactive Playback Action -->
+                <div class="audio-action-row">
+                    <button class="action-play-btn" id="actionPlayBtn" onclick="togglePlaySelected()">
+                        <svg viewBox="0 0 24 24">
+                            <path d="M8 5v14l11-7z" id="actionBtnIconPath"/>
+                        </svg>
+                        <span id="actionBtnText">試聽此聲線效果</span>
+                    </button>
+                </div>
+                
+            </div>
+            
+        </div>
+
+        <!-- Science Explanation section -->
+        <div class="science-section">
+            <h3>聲學微調調校之物理原理</h3>
+            <p style="color: var(--text-muted); font-size: 0.95rem; line-height: 1.6;">
+                類神經語音合成 (Neural Text-to-Speech) 的微調並非單純的變速或升降 key。我們是透過控制語速 (Rate) 與音調基頻 (Pitch) 的物理特徵，來重塑聲音角色的生理特質：
+            </p>
+            
+            <div class="science-grid">
+                <div class="science-card">
+                    <h4>1. 聲道特徵幼齒化 (Vocal Tract Scaling)</h4>
+                    <p>兒童的聲帶短且喉部發音腔較窄，共鳴頻率高。我們將成年配音員的音調調高 <b>+28Hz 至 +45Hz</b>，能模擬生理聲道縮小的共鳴特質，呈現極為稚嫩萌感的男女童音。</p>
+                </div>
+                <div class="science-card">
+                    <h4>2. 胸腔共鳴成熟化 (Chest Resonance)</h4>
+                    <p>成人的聲帶長且粗，發音時胸腔共鳴比例高。我們將音調微調壓低 <b>-15Hz</b>，能有效增加男聲基頻的共鳴深度，塑造成熟、飽滿且極具磁性的紳士音色。</p>
+                </div>
+                <div class="science-card">
+                    <h4>3. 心智語速微調 (Psychological Speech Rate)</h4>
+                    <p>語速是展現聲音年齡與心智狀態的核心。活潑俏皮的小朋友語速通常微快（<b>+10% 至 +15%</b>），而療癒、溫柔安撫的成人聲線語速則刻意調慢（<b>-8% 至 -15%</b>）以製造放鬆的呼吸感。</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Center Redirect Tip -->
+        <div style="background: rgba(124, 58, 237, 0.03); border: 1px solid rgba(124, 58, 237, 0.1); border-radius: 24px; padding: 24px; margin-top: 30px; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 16px;">
+            <div style="display: flex; align-items: center; gap: 14px; text-align: left;">
+                <span style="font-size: 1.8rem;">📦</span>
+                <div>
+                    <h4 style="font-size: 1rem; font-weight: 600; color: #0f172a; margin-bottom: 4px;">需要下載 generate_tts.py 主程式與 tts_scripts.txt 腳本檔案嗎？</h4>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">我們已在首頁提供離線動態下載中心與步驟一至五詳細安裝說明手冊！</span>
+                </div>
+            </div>
+            <a href="./index.html#deployment-center" style="background: linear-gradient(135deg, var(--primary), #7c3aed); border: none; padding: 12px 24px; border-radius: 14px; color: #0f172a; text-decoration: none; font-size: 0.85rem; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; box-shadow: 0 4px 15px var(--primary-glow); transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 20px rgba(139, 92, 246, 0.45)'" onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 15px var(--primary-glow)'">
+                <span>前往資源下載與安裝中心 🚀</span>
+            </a>
+        </div>
+
+        <!-- Premium Footer -->
+        <footer style="margin-top: 80px; padding: 40px 0 20px 0; border-top: 1px solid rgba(255, 255, 255, 0.05); text-align: center;">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 20px;">
+                <div style="position: relative; display: inline-block; width: 260px; height: 260px;">
+                    <!-- Giant Glow Background (290px width with -15px offset for perfect center alignment) -->
+                    <div style="position: absolute; top: -15px; left: -15px; width: 290px; height: 290px; border-radius: 50%; background: linear-gradient(135deg, var(--primary), var(--secondary)); filter: blur(16px); opacity: 0.75; z-index: -1;"></div>
+                    <!-- Giant Xiaoer Squirrel Superhero Image (260px width, fully proportional!) -->
+                    <img src="./xiaoer-m01-superman.png" alt="Xiaoer Logo" style="width: 260px; height: 260px; border-radius: 50%; border: 4px solid #ffffff; display: block; object-fit: cover; box-shadow: 0 10px 35px rgba(0, 0, 0, 0.6); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.3s;" onmouseover="this.style.transform='scale(1.06) rotate(3deg)'; this.style.boxShadow='0 15px 45px rgba(139, 92, 246, 0.45)';" onmouseout="this.style.transform='scale(1) rotate(0deg)'; this.style.boxShadow='0 10px 35px rgba(0, 0, 0, 0.6)';" title="超萌 Xiaoer 鼠超人！">
+                </div>
+                <div style="font-size: 0.92rem; color: #475569; font-weight: 600; letter-spacing: 0.8px; margin-top: 10px;">
+                    Powered by <span style="background: linear-gradient(135deg, #c084fc, #a78bfa); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Xiaoer</span> & <span style="background: linear-gradient(135deg, #34d399, #10b981); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Antigravity 2.0</span>
+                </div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); font-weight: 300;">
+                    © 2026 聲學調校視覺化儀表板 • 保留所有原創權利
+                </div>
+            </div>
+        </footer>
+
+    </div>
+
+    <script>
+        // Copy of the 20 voices database
+        const voicesData = [
+            // Female 01-05
+            { id: "1", category: "female", categoryLabel: "台灣女聲", style: "溫柔安撫型", voice: "zh-TW-HsiaoChenNeural", rate: "-15%", pitch: "+0Hz", file: "./audio/01_gentle_soothing.mp3", desc: "大放慢速度營造呼吸感與療癒氛圍" },
+            { id: "2", category: "female", categoryLabel: "台灣女聲", style: "知性感性型", voice: "zh-TW-HsiaoChenNeural", rate: "+0%", pitch: "+0Hz", file: "./audio/02_intellectual_emotional.mp3", desc: "曉臻最平穩感性且字正腔圓的聲線" },
+            { id: "3", category: "female", categoryLabel: "台灣女聲", style: "輕柔陪伴型", voice: "zh-TW-HsiaoChenNeural", rate: "-8%", pitch: "+0Hz", file: "./audio/03_soft_companionship.mp3", desc: "微慢速度呈現溫馨、耐心的陪伴腔調" },
+            { id: "4", category: "female", categoryLabel: "台灣女聲", style: "偏甜自然型", voice: "zh-TW-HsiaoChenNeural", rate: "+5%", pitch: "+10Hz", file: "./audio/04_sweet_natural.mp3", desc: "拉高音頻並微加快帶出偏甜少女感" },
+            { id: "5", category: "female", categoryLabel: "台灣女聲", style: "柔和帶情緒型", voice: "zh-TW-HsiaoChenNeural", rate: "-5%", pitch: "+0Hz", file: "./audio/05_soft_expressive.mp3", desc: "微慢語速給予詞句間情感起伏的空間" },
+            // Male 06-10
+            { id: "6", category: "male", categoryLabel: "台灣男聲", style: "陽光活力型", voice: "zh-TW-YunJheNeural", rate: "+5%", pitch: "+15Hz", file: "./audio/06_energetic_male.mp3", desc: "微幅提高頻率展現朝氣澎湃的青年男音" },
+            { id: "7", category: "male", categoryLabel: "台灣男聲", style: "溫暖療癒型", voice: "zh-TW-YunJheNeural", rate: "-8%", pitch: "+0Hz", file: "./audio/07_warm_soothing_male.mp3", desc: "慢節奏保留溫和共鳴呈現暖男大哥哥感" },
+            { id: "8", category: "male", categoryLabel: "台灣男聲", style: "磁性成熟型", voice: "zh-TW-YunJheNeural", rate: "-5%", pitch: "-15Hz", file: "./audio/08_mature_magnetic_male.mp3", desc: "壓低音頻增加發音共鳴呈現磁性熟男" },
+            { id: "9", category: "male", categoryLabel: "台灣男聲", style: "活潑俏皮型", voice: "zh-TW-YunJheNeural", rate: "+12%", pitch: "+35Hz", file: "./audio/09_playful_boy_male.mp3", desc: "大幅提升音頻與節奏模擬調皮小男生" },
+            { id: "10", category: "male", categoryLabel: "台灣男聲", style: "商務專業型", voice: "zh-TW-YunJheNeural", rate: "+2%", pitch: "-5Hz", file: "./audio/10_professional_corporate_male.mp3", desc: "微降音頻與精煉語速展現簡報說服力" },
+            // Girl 11-15
+            { id: "11", category: "girl", categoryLabel: "台灣女童聲", style: "奶萌幼兒型", voice: "zh-TW-HsiaoChenNeural", rate: "+0%", pitch: "+45Hz", file: "./audio/11_cute_toddler_girl.mp3", desc: "極致拉高音調挑戰3歲超萌小奶音" },
+            { id: "12", category: "girl", categoryLabel: "台灣女童聲", style: "活潑頑皮型", voice: "zh-TW-HsiaoChenNeural", rate: "+15%", pitch: "+40Hz", file: "./audio/12_playful_schoolgirl.mp3", desc: "快速急促語氣呈現愛奔跑的小女生童音" },
+            { id: "13", category: "girl", categoryLabel: "台灣女童聲", style: "溫柔乖巧型", voice: "zh-TW-HsiaoChenNeural", rate: "-8%", pitch: "+35Hz", file: "./audio/13_gentle_sweet_girl.mp3", desc: "慢速拉高音調呈現安靜乖巧的小小童音" },
+            { id: "14", category: "girl", categoryLabel: "台灣女童聲", style: "小公主傲嬌型", voice: "zh-TW-HsiaoChenNeural", rate: "+8%", pitch: "+38Hz", file: "./audio/14_sassy_princess_girl.mp3", desc: "微急促高音頻展現傲嬌愛撒嬌的小公主語調" },
+            { id: "15", category: "girl", categoryLabel: "台灣女童聲", style: "故事姐姐型", voice: "zh-TW-HsiaoChenNeural", rate: "+2%", pitch: "+30Hz", file: "./audio/15_storytelling_child_girl.mp3", desc: "保留童音兼顧流暢度，打造小大人說故事感" },
+            // Boy 16-20
+            { id: "16", category: "boy", categoryLabel: "台灣男童聲", style: "聰明伶俐型", voice: "zh-TW-YunJheNeural", rate: "+10%", pitch: "+36Hz", file: "./audio/16_clever_bright_boy.mp3", desc: "快速節奏配童高音呈現求知欲強的正太音" },
+            { id: "17", category: "boy", categoryLabel: "台灣男童聲", style: "慵懶撒嬌型", voice: "zh-TW-YunJheNeural", rate: "-12%", pitch: "+38Hz", file: "./audio/17_cozy_pampered_boy.mp3", desc: "極慢配速與童音重現賴床萌小男孩撒嬌音" },
+            { id: "18", category: "boy", categoryLabel: "台灣男童聲", style: "好奇寶寶型", voice: "zh-TW-YunJheNeural", rate: "+6%", pitch: "+42Hz", file: "./audio/18_curious_inquisitive_boy.mp3", desc: "極高音調展現滿腦子問號的好奇小男孩特質" },
+            { id: "19", category: "boy", categoryLabel: "台灣男童聲", style: "認真小班長型", voice: "zh-TW-YunJheNeural", rate: "+0%", pitch: "+28Hz", desc: "標準語速搭配微童音展現認真執法小班長", file: "./audio/19_earnest_class_leader_boy.mp3" },
+            { id: "20", category: "boy", categoryLabel: "台灣男童聲", style: "膽小害羞型", voice: "zh-TW-YunJheNeural", rate: "-15%", pitch: "+35Hz", file: "./audio/20_shy_timid_boy.mp3", desc: "大慢速模擬吞吐語氣呈現害羞小正太" }
+        ];
+
+        // Global States
+        let selectedIndex = 0; // Default index 0 (Voice 01)
+        let currentAudio = null;
+        let isPlaying = false;
+
+        // Elements
+        const tbody = document.getElementById('tbody');
+        const selectedStyle = document.getElementById('selectedStyle');
+        const selectedCat = document.getElementById('selectedCat');
+        const simChamber = document.getElementById('simChamber');
+        const simChord = document.getElementById('simChord');
+        const vizTractLabel = document.getElementById('vizTractLabel');
+        const vizRateVal = document.getElementById('vizRateVal');
+        const vizRateSlider = document.getElementById('vizRateSlider');
+        const vizPitchVal = document.getElementById('vizPitchVal');
+        const vizPitchSlider = document.getElementById('vizPitchSlider');
+        const cliCodeBox = document.getElementById('cliCodeBox');
+        const actionPlayBtn = document.getElementById('actionPlayBtn');
+        const actionBtnText = document.getElementById('actionBtnText');
+        const actionBtnIconPath = document.getElementById('actionBtnIconPath');
+
+        // Populate Table on load
+        function initTable() {
+            tbody.innerHTML = '';
+            voicesData.forEach((voice, index) => {
+                const tr = document.createElement('tr');
+                tr.id = `tr-${index}`;
+                tr.onclick = () => selectVoice(index);
+                tr.innerHTML = `
+                    <td class="row-id">${String(voice.id).padStart(2, '0')}</td>
+                    <td><span class="badge-cat cat-${voice.category}">${voice.categoryLabel}</span></td>
+                    <td style="font-weight: 500;">${voice.style}</td>
+                    <td style="color: var(--text-muted);">${voice.voice.split('-')[2].replace('Neural', '')}</td>
+                    <td class="param-text param-rate">${voice.rate}</td>
+                    <td class="param-text param-pitch">${voice.pitch}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+            
+            // Auto-select first voice
+            selectVoice(0);
+        }
+
+        // Selection Controller
+        function selectVoice(index) {
+            // Remove previous selections
+            const prevRow = document.getElementById(`tr-${selectedIndex}`);
+            if (prevRow) prevRow.classList.remove('selected');
+
+            // Select new row
+            selectedIndex = index;
+            const newRow = document.getElementById(`tr-${index}`);
+            if (newRow) newRow.classList.add('selected');
+
+            // Get selected voice data
+            const voice = voicesData[index];
+            
+            // Reset player states if audio changes
+            if (currentAudio) {
+                currentAudio.pause();
+                currentAudio = null;
+                isPlaying = false;
+                updatePlayerButtonState(false);
+            }
+
+            // Update Text descriptions
+            selectedStyle.innerText = `${voice.style}`;
+            selectedCat.innerText = `${voice.categoryLabel} | ${voice.desc}`;
+
+            // Parse numerical parameters for visual calculations
+            const rateNum = parseInt(voice.rate.replace('%', ''));
+            const pitchNum = parseInt(voice.pitch.replace('Hz', '').replace('+', ''));
+
+            // Calculate Gauge Sliders (Rate: -30% to +30%, center is 50%)
+            const ratePercentage = ((rateNum + 30) / 60) * 100;
+            vizRateVal.innerText = voice.rate;
+            vizRateSlider.style.width = `${ratePercentage}%`;
+
+            // Calculate Gauge Sliders (Pitch: -30Hz to +50Hz, center is 50%)
+            const pitchPercentage = ((pitchNum + 30) / 80) * 100;
+            vizPitchVal.innerText = voice.pitch;
+            vizPitchSlider.style.width = `${pitchPercentage}%`;
+
+            // Dynamic SVG chamber deformation representing vocal tract physics
+            // High Pitch (+45Hz) = Small chamber (child), Low Pitch (-15Hz) = Large chamber (mature adult)
+            // base radius is 45, max high pitch radius is 25, min low pitch radius is 55
+            let radius = 45;
+            let chordRadius = 15;
+            let glowColor = "#8b5cf6"; // Purple default female
+            
+            if (pitchNum > 0) {
+                // Child: Vocal tract scales down
+                radius = 45 - (pitchNum / 45) * 20;
+                chordRadius = 15 - (pitchNum / 45) * 6;
+            } else if (pitchNum < 0) {
+                // Mature adult deep chest: Vocal tract scales up
+                radius = 45 + (Math.abs(pitchNum) / 15) * 10;
+                chordRadius = 15 + (Math.abs(pitchNum) / 15) * 4;
+            }
+
+            // Color scheme matches the gender
+            if (voice.category === 'male' || voice.category === 'boy') {
+                glowColor = "#10b981"; // Green for male
+            } else if (voice.category === 'girl') {
+                glowColor = "#f43f5e"; // Pink for girl
+            } else {
+                glowColor = "#ec4899"; // Magenta for adult female
+            }
+
+            // Apply SVG updates
+            simChamber.setAttribute('r', radius);
+            simChamber.setAttribute('stroke', glowColor);
+            document.getElementById('glowGrad').children[0].setAttribute('stop-color', glowColor);
+            
+            // Cord tension (simulated inside core)
+            simChord.setAttribute('r', chordRadius);
+            simChord.setAttribute('fill', voice.category.includes('boy') || voice.category.includes('male') ? '#06b6d4' : '#ec4899');
+            
+            // Resonance calculation display
+            const tractVolume = Math.round((radius / 45) * 100);
+            vizTractLabel.innerText = `模擬共鳴腔大小：${tractVolume}% (${pitchNum >= 28 ? '童音聲道' : pitchNum <= -5 ? '深沉胸腔' : '標準聲道'})`;
+
+            // CLI Generator updates
+            const cliText = `edge-tts --voice ${voice.voice} --rate ${voice.rate} --pitch ${voice.pitch} --text "這裡輸入您想生成的話" --write-media ${voice.file.replace('./', '')}`;
+            cliCodeBox.innerText = cliText;
+        }
+
+        // Copy CLI Command on click
+        cliCodeBox.addEventListener('click', () => {
+            navigator.clipboard.writeText(cliCodeBox.innerText).then(() => {
+                const toast = document.getElementById('toast');
+                toast.classList.add('show');
+                setTimeout(() => {
+                    toast.classList.remove('show');
+                }, 2000);
+            });
+        });
+
+        // Trigger Audio Playbacks
+        function togglePlaySelected() {
+            const voice = voicesData[selectedIndex];
+            
+            if (isPlaying) {
+                currentAudio.pause();
+                isPlaying = false;
+                updatePlayerButtonState(false);
+            } else {
+                if (!currentAudio) {
+                    currentAudio = new Audio(voice.file);
+                    
+                    currentAudio.addEventListener('ended', () => {
+                        isPlaying = false;
+                        updatePlayerButtonState(false);
+                    });
+                }
+                
+                currentAudio.play().then(() => {
+                    isPlaying = true;
+                    updatePlayerButtonState(true);
+                }).catch(err => {
+                    console.error("Audio blocked:", err);
+                    alert(`試聽失敗！請確認工作區目錄下已生成此音檔：\n${voice.file.replace('./', '')}`);
+                });
+            }
+        }
+
+        // Toggle Visual play btn
+        function updatePlayerButtonState(playState) {
+            if (playState) {
+                actionPlayBtn.classList.add('playing');
+                actionBtnText.innerText = "暫停播放";
+                // Change SVG to pause
+                actionBtnIconPath.setAttribute('d', "M6 19h4V5H6v14zm8-14v14h4V5h-4z");
+            } else {
+                actionPlayBtn.classList.remove('playing');
+                actionBtnText.innerText = "試聽此聲線效果";
+                // Change SVG to play
+                actionBtnIconPath.setAttribute('d', "M8 5v14l11-7z");
+            }
+        }
+
+        // Load init
+        window.addEventListener('DOMContentLoaded', () => {
+            initTable();
+        });
+    </script>
+</body>
+</html>
